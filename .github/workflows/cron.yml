@@ -19,9 +19,11 @@ jobs:
           node-version: '20'
 
       - name: Bağımlılıkları Yükle
+        working-directory: ./lead-automation1
         run: npm ci
 
       - name: Otomasyonu Çalıştır
+        working-directory: ./lead-automation1
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
