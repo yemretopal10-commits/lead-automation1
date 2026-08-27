@@ -4,10 +4,19 @@ const cheerio = require('cheerio');
 const { createClient } = require('@supabase/supabase-js');
 const Groq = require('groq-sdk');
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
 async function leadToplaVeKaydet(targetUrl) {
+  // Çevre değişkenlerini kontrol et
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("❌ HATA: SUPABASE_URL veya SUPABASE_KEY çevre değişkenleri eksik!");
+    return;
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
   console.log(`🌐 Site taranıyor: ${targetUrl}`);
   try {
     // 1. Web sitesinin içeriğini indir
@@ -77,5 +86,5 @@ async function leadToplaVeKaydet(targetUrl) {
   }
 }
 
-// TEST: Denemek istediğiniz hedef firmanın web/iletişim sayfasını buraya yazın
+// TEST
 leadToplaVeKaydet('https://www.google.com');
