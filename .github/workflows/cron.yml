@@ -2,8 +2,8 @@ name: B2B Lead Automation Cron
 
 on:
   schedule:
-    - cron: '0 9 * * *' # Her gün saat 09:00'da çalışır
-  workflow_dispatch: # Elle çalıştırma butonu
+    - cron: '0 9 * * *'
+  workflow_dispatch:
 
 jobs:
   run-automation:
