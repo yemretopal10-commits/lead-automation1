@@ -5,12 +5,13 @@ const { createClient } = require('@supabase/supabase-js');
 const Groq = require('groq-sdk');
 
 async function leadToplaVeKaydet(targetUrl) {
-  // Çevre değişkenlerini kontrol et
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_KEY;
 
+  console.log("SUPABASE_URL Kontrolü:", supabaseUrl ? "BAŞARILI" : "EKSİK/BOŞ");
+
   if (!supabaseUrl || !supabaseKey) {
-    console.error("❌ HATA: SUPABASE_URL veya SUPABASE_KEY çevre değişkenleri eksik!");
+    console.error("❌ SUPABASE_URL veya SUPABASE_KEY tanımlı değil!");
     return;
   }
 
@@ -19,24 +20,20 @@ async function leadToplaVeKaydet(targetUrl) {
 
   console.log(`🌐 Site taranıyor: ${targetUrl}`);
   try {
-    // 1. Web sitesinin içeriğini indir
     const { data: html } = await axios.get(targetUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
       timeout: 10000
     });
     const $ = cheerio.load(html);
 
-    // Gereksiz kod bloklarını temizle ve ham metni al
     $('script, style, iframe').remove();
     const sayfaMetni = $('body').text().replace(/\s+/g, ' ').slice(0, 3000);
 
     console.log("🤖 Yapay zeka verileri analiz ediyor...");
 
-    // Aktif modeli al
     const modelsList = await groq.models.list();
     const activeModel = modelsList.data[0]?.id;
 
-    // 2. Groq AI'dan metni JSON formatında ayıklamasını iste
     const completion = await groq.chat.completions.create({
       messages: [
         {
@@ -61,7 +58,6 @@ async function leadToplaVeKaydet(targetUrl) {
 
     console.log("🎯 Bulunan Veri:", leadData);
 
-    // 3. Supabase Veritabanına Kaydet
     const { error } = await supabase.from('leads').insert([
       {
         sirket_adi: leadData.sirket_adi || 'Bilinmiyor',
@@ -86,5 +82,4 @@ async function leadToplaVeKaydet(targetUrl) {
   }
 }
 
-// TEST
 leadToplaVeKaydet('https://www.google.com');
