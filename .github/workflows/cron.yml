@@ -1,0 +1,31 @@
+name: B2B Lead Automation Cron
+
+on:
+  schedule:
+    - cron: '0 9 * * 1-5' # Hafta içi her gün sabah 09:00'da otomatik çalışır (UTC)
+  workflow_dispatch: # İstediğiniz an manuel tetikleme butonu ekler
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodu Çek
+        uses: actions/checkout@v4
+
+      - name: Node.js Ortamını Hazırla
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Bağımlılıkları Yükle
+        run: npm ci || npm install
+
+      - name: Otomasyonu Çalıştır
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          node scraper.js
+          node emailer.js
