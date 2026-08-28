@@ -23,20 +23,20 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
 
     console.log("🤖 Groq AI ile skorlama ve veri zenginleştirme yapılıyor...");
 
-    // Aktif ve hızlı Llama 3.1 modeli
-    const activeModel = 'llama-3.1-8b-instant';
+    // Groq'un en temel, her hesapta ücretsiz ve açık olan varsayılan modeli
+    const activeModel = 'gemma2-9b-it';
 
     const completion = await groq.chat.completions.create({
       messages: [
         {
           role: 'system',
-          content: `Sen bir B2B Müşteri Analistisin. Verilen metni detaylıca incele.
-SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama ekleme:
+          content: `Sen bir B2B Müşteri Analistisin. Verilen metni incele. 
+SADECE geçerli bir JSON objesi döndür. Metin veya açıklama ekleme:
 {
   "sirket_adi": "Şirket Adı",
-  "email": "Gerçek e-posta adresi veya null",
+  "email": "Gerçek e-posta veya null",
   "sektor": "Ana sektör",
-  "potansiyel_skoru": 5,
+  "potansiyel_skoru": 8,
   "skor_nedeni": "Kısa gerekçe",
   "hedef_unvan": "CEO"
 }`
@@ -46,11 +46,19 @@ SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama ekleme:
           content: sayfaMetni
         }
       ],
-      model: activeModel,
-      response_format: { type: "json_object" }
+      model: activeModel
     });
 
-    const leadData = JSON.parse(completion.choices[0].message.content);
+    const rawContent = completion.choices[0].message.content;
+    
+    // JSON içeriğini metinden güvenli şekilde çıkarma
+    const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.log("❌ AI geçerli bir JSON üretemedi.");
+      return;
+    }
+
+    const leadData = JSON.parse(jsonMatch[0]);
 
     if (!leadData.email) {
       console.log("⚠️ E-posta adresi bulunamadı, veritabanına eklenmedi.");
