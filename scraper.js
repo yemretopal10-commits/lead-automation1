@@ -23,8 +23,8 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
 
     console.log("🤖 Groq AI ile skorlama ve veri zenginleştirme yapılıyor...");
 
-    const modelsList = await groq.models.list();
-    const activeModel = modelsList.data[0]?.id || 'llama-3.3-70b-versatile';
+    // Kararlı ve standart model sabitlendi
+    const activeModel = 'llama-3.3-70b-versatile';
 
     const completion = await groq.chat.completions.create({
       messages: [
@@ -57,7 +57,6 @@ SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama ekleme:
       return;
     }
 
-    // Skor 7 ve üzeriyse mail gönderim durumu belirle
     const yuksekSkorluMu = leadData.potansiyel_skoru >= 7;
     let baslangicDurumu = 'bekliyor';
 
@@ -113,7 +112,7 @@ async function main() {
   const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!supabaseUrl || !supabaseKey || !resendApiKey) {
-    console.error("❌ Gerekli çevre değişkenleri (SUPABASE_URL, SUPABASE_KEY, RESEND_API_KEY) eksik!");
+    console.error("❌ Gerekli çevre değişkenleri eksik!");
     return;
   }
 
