@@ -2,12 +2,13 @@ require('dotenv').config();
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { createClient } = require('@supabase/supabase-js');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const HEDEF_SITELER = [
   'https://www.metrik.com.tr',
 ];
 
-async function siteyiAnalizEtVeKaydet(targetUrl, supabase, geminiKey) {
+async function siteyiAnalizEtVeKaydet(targetUrl, supabase, geminiApiKey) {
   console.log(`\n🌐 Site taranıyor: ${targetUrl}`);
   try {
     const { data: html } = await axios.get(targetUrl, {
@@ -21,6 +22,9 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, geminiKey) {
 
     console.log("🤖 Google Gemini AI ile profesyonel B2B analizi yapılıyor...");
 
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
     const promptText = `Sen profesyonel bir B2B Müşteri Analistisin. Verilen web sitesi metnini analiz et. SADECE saf bir JSON objesi döndür, markdown blokları veya ekstra metin ekleme:
 {
   "sirket_adi": "Şirket Adı",
@@ -33,14 +37,9 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, geminiKey) {
 
 Metin: ${sayfaMetni}`;
 
-    const geminiResponse = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-      {
-        contents: [{ parts: [{ text: promptText }] }]
-      }
-    );
-
-    const rawContent = geminiResponse.data.candidates[0].content.parts[0].text.trim();
+    const result = await model.generateContent(promptText);
+    const rawContent = result.response.text().trim();
+    
     const jsonStart = rawContent.indexOf('{');
     const jsonEnd = rawContent.lastIndexOf('}');
     
@@ -82,7 +81,7 @@ Metin: ${sayfaMetni}`;
     }
 
   } catch (err) {
-    console.error(`❌ ${targetUrl} taranırken hata oluştu:`, err.response?.data || err.message);
+    console.error(`❌ ${targetUrl} taranırken hata oluştu:`, err.message);
   }
 }
 
