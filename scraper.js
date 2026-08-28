@@ -3,14 +3,13 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { createClient } = require('@supabase/supabase-js');
 const Groq = require('groq-sdk');
+const { Resend } = require('resend');
 
-// Test etmek istediğin gerçek B2B web sitelerinin URL'lerini buraya ekle:
 const HEDEF_SITELER = [
-  'https://www.metrik.com.tr', // Örnek B2B site 1 (Kendi hedef listene göre güncelleyebilirsin)
-  // 'https://ornek-ajans.com/iletisim',
+  'https://www.metrik.com.tr',
 ];
 
-async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq) {
+async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
   console.log(`\n🌐 Site taranıyor: ${targetUrl}`);
   try {
     const { data: html } = await axios.get(targetUrl, {
@@ -53,13 +52,33 @@ SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama ekleme:
 
     const leadData = JSON.parse(completion.choices[0].message.content);
 
-    // E-posta yoksa veri kirliliğini önlemek için kaydı atla
     if (!leadData.email) {
       console.log("⚠️ E-posta adresi bulunamadı, veritabanına eklenmedi.");
       return;
     }
 
-    console.log("🎯 AI Tarafından Analiz Edilen Nitelikli Veri:", leadData);
+    // Skor 7 ve üzeriyse mail gönderim durumu belirle
+    const yuksekSkorluMu = leadData.potansiyel_skoru >= 7;
+    let baslangicDurumu = 'bekliyor';
+
+    if (yuksekSkorluMu) {
+      console.log("🔥 Yüksek potansiyelli lead tespit edildi! E-posta gönderiliyor...");
+      try {
+        await resend.emails.send({
+          from: 'Lead Otomasyon <onboarding@resend.dev>',
+          to: leadData.email,
+          subject: `${leadData.sirket_adi || 'Şirketiniz'} İçin Dijital Büyüme Teklifi`,
+          html: `<p>Merhaba,</p><p>Web sitenizi inceledik ve ${leadData.sektor} sektöründeki potansiyelinizi gördük. Dijital süreçlerinizi optimize etmek için görüşelim mi?</p>`
+        });
+        baslangicDurumu = 'mail_atildi';
+        console.log("🚀 Resend ile teklif e-postası başarıyla gönderildi!");
+      } catch (emailErr) {
+        console.error("❌ E-posta gönderilemedi:", emailErr.message);
+        baslangicDurumu = 'mail_hatasi';
+      }
+    } else {
+      console.log(`ℹ️ Skor ${leadData.potansiyel_skoru}/10 olduğu için e-posta atlandı.`);
+    }
 
     const { error } = await supabase.from('leads').insert([
       {
@@ -69,7 +88,7 @@ SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama ekleme:
         potansiyel_skoru: leadData.potansiyel_skoru || 5,
         skor_nedeni: leadData.skor_nedeni || 'Otomatik analiz edildi.',
         hedef_unvan: leadData.hedef_unvan || 'Kurucu / CEO',
-        durum: 'bekliyor'
+        durum: baslangicDurumu
       }
     ]);
 
@@ -80,7 +99,7 @@ SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama ekleme:
         console.error("❌ Supabase Kayıt Hatası:", error.message);
       }
     } else {
-      console.log("🚀 Gerçek nitelikli lead Supabase'e kaydedildi!");
+      console.log("💾 Veri Supabase veritabanına kaydedildi.");
     }
 
   } catch (err) {
@@ -91,17 +110,19 @@ SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama ekleme:
 async function main() {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_KEY;
+  const resendApiKey = process.env.RESEND_API_KEY;
 
-  if (!supabaseUrl || !supabaseKey) {
-    console.error("❌ SUPABASE_URL veya SUPABASE_KEY tanımlı değil!");
+  if (!supabaseUrl || !supabaseKey || !resendApiKey) {
+    console.error("❌ Gerekli çevre değişkenleri (SUPABASE_URL, SUPABASE_KEY, RESEND_API_KEY) eksik!");
     return;
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  const resend = new Resend(resendApiKey);
 
   for (const url of HEDEF_SITELER) {
-    await siteyiAnalizEtVeKaydet(url, supabase, groq);
+    await siteyiAnalizEtVeKaydet(url, supabase, groq, resend);
   }
 }
 
