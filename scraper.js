@@ -4,7 +4,6 @@ const cheerio = require('cheerio');
 const { createClient } = require('@supabase/supabase-js');
 const Groq = require('groq-sdk');
 
-// Test etmek istediğin web sitelerini buraya ekleyebilirsin:
 const HEDEF_SITELER = [
   'https://www.scrapethissite.com/pages/simple/'
 ];
@@ -52,9 +51,10 @@ SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama yazma:
 
     const leadData = JSON.parse(completion.choices[0].message.content);
 
+    // E-posta yoksa bile Supabase tablosunu görebilmen için zorunlu kayıt ekledik
     if (!leadData.email) {
-      console.log("⚠️ E-posta adresi bulunamadı, kayıt atlandı.");
-      return;
+      console.log("⚠️ E-posta bulunamadı ama tabloyu test etmek için geçici mail atandı.");
+      leadData.email = `test-${Date.now()}@basarili.com`;
     }
 
     console.log("🎯 AI Tarafından Zenginleştirilen Veri:", leadData);
