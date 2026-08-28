@@ -23,7 +23,7 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, geminiApiKey) {
     console.log("🤖 Google Gemini AI ile profesyonel B2B analizi yapılıyor...");
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
 
     const promptText = `Sen profesyonel bir B2B Müşteri Analistisin. Verilen web sitesi metnini analiz et. SADECE saf bir JSON objesi döndür, markdown blokları veya ekstra metin ekleme:
 {
