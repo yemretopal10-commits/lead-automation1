@@ -23,7 +23,6 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
 
     console.log("🤖 Groq AI ile skorlama ve veri zenginleştirme yapılıyor...");
 
-    // Hesabının erişebildiği modeli otomatik seçer
     const modelsList = await groq.models.list();
     const activeModel = modelsList.data[0]?.id || 'llama-3.1-70b-versatile';
 
@@ -34,12 +33,12 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
           content: `Sen bir B2B Müşteri Analistisin. Verilen metni detaylıca incele.
 SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama ekleme:
 {
-  "sirket_adi": "Şirket Adı veya null",
-  "email": "Metindeki gerçek e-posta adresi (Örn: info@..., iletisim@...) veya null",
-  "sektor": "Şirketin ana sektörü",
-  "potansiyel_skoru": 1 ile 10 arasında bir puan (Ticari potansiyeli ve dijital olgunluğuna göre),
-  "skor_nedeni": "Bu puanın kısa gerekçesi (1 cümle)",
-  "hedef_unvan": "Ulaşılacak ideal karar verici (Örn: CEO, Pazarlama Direktörü, Kurucu)"
+  "sirket_adi": "Şirket Adı",
+  "email": "Gerçek e-posta adresi veya null",
+  "sektor": "Ana sektör",
+  "potansiyel_skoru": 5,
+  "skor_nedeni": "Kısa gerekçe",
+  "hedef_unvan": "CEO"
 }`
         },
         {
@@ -63,18 +62,21 @@ SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama ekleme:
 
     if (yuksekSkorluMu) {
       console.log("🔥 Yüksek potansiyelli lead tespit edildi! E-posta gönderiliyor...");
-      try {
-        await resend.emails.send({
-          from: 'Lead Otomasyon <onboarding@resend.dev>',
-          to: leadData.email,
-          subject: `${leadData.sirket_adi || 'Şirketiniz'} İçin Dijital Büyüme Teklifi`,
-          html: `<p>Merhaba,</p><p>Web sitenizi inceledik ve ${leadData.sektor} sektöründeki potansiyelinizi gördük. Dijital süreçlerinizi optimize etmek için görüşelim mi?</p>`
-        });
+      
+      // Resend API Yanıtı Doğru Şekilde Yakalanıyor
+      const { error: emailErr } = await resend.emails.send({
+        from: 'Lead Otomasyon <onboarding@resend.dev>',
+        to: leadData.email,
+        subject: `${leadData.sirket_adi || 'Şirketiniz'} İçin Dijital Büyüme Teklifi`,
+        html: `<p>Merhaba,</p><p>Web sitenizi inceledik ve ${leadData.sektor} sektöründeki potansiyelinizi gördük. Dijital süreçlerinizi optimize etmek için görüşelim mi?</p>`
+      });
+
+      if (emailErr) {
+        console.error("❌ E-posta gönderilemedi:", emailErr.message || emailErr.name);
+        baslangicDurumu = 'mail_hatasi';
+      } else {
         baslangicDurumu = 'mail_atildi';
         console.log("🚀 Resend ile teklif e-postası başarıyla gönderildi!");
-      } catch (emailErr) {
-        console.error("❌ E-posta gönderilemedi:", emailErr.message);
-        baslangicDurumu = 'mail_hatasi';
       }
     } else {
       console.log(`ℹ️ Skor ${leadData.potansiyel_skoru}/10 olduğu için e-posta atlandı.`);
