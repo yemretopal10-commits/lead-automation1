@@ -23,8 +23,8 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
 
     console.log("🤖 Groq AI ile skorlama ve veri zenginleştirme yapılıyor...");
 
-    // JSON modunu kesin olarak destekleyen kararlı model sabitlendi
-    const activeModel = 'llama3-8b-8192';
+    // Aktif ve hızlı Llama 3.1 modeli
+    const activeModel = 'llama-3.1-8b-instant';
 
     const completion = await groq.chat.completions.create({
       messages: [
