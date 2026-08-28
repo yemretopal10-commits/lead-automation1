@@ -23,9 +23,13 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
 
     console.log("🤖 Groq AI ile skorlama ve veri zenginleştirme yapılıyor...");
 
-    // Aktif modeller listeleniyor ve çalışan bir model otomatik seçiliyor
+    // Güvenlik (prompt-guard/whisper) modellerini hariç tutan doğru model seçimi
     const modelsList = await groq.models.list();
-    const usableModel = modelsList.data.find(m => m.id.includes('llama') || m.id.includes('mixtral'))?.id || modelsList.data[0].id;
+    const usableModel = modelsList.data.find(m => 
+      !m.id.includes('guard') && 
+      !m.id.includes('whisper') && 
+      (m.id.includes('llama') || m.id.includes('gpt-oss') || m.id.includes('qwen'))
+    )?.id || 'llama-3.3-70b-versatile';
     
     console.log(`📌 Seçilen Aktif Groq Modeli: ${usableModel}`);
 
