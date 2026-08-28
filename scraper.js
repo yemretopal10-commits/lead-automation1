@@ -4,11 +4,9 @@ const cheerio = require('cheerio');
 const { createClient } = require('@supabase/supabase-js');
 const Groq = require('groq-sdk');
 
-// Hedef Web Siteleri Listesi (Test için gerçek firmaların siteleri eklenebilir)
+// Test etmek istediğin web sitelerini buraya ekleyebilirsin:
 const HEDEF_SITELER = [
-  'https://www.google.com', // Test için
-  // 'https://ornek-eticaret-sitesi.com',
-  // 'https://ornek-yazilim-sirketi.com'
+  'https://www.w3schools.com/about/about_contact.asp'
 ];
 
 async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq) {
@@ -36,7 +34,7 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq) {
 SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama yazma:
 {
   "sirket_adi": "Şirket Adı veya null",
-  "email": "E-posta veya null",
+  "email": "Metinde geçen ilk e-posta adresi veya null",
   "sektor": "Sektör bilgisi",
   "potansiyel_skoru": 1 ile 10 arasında bir tamsayı,
   "skor_nedeni": "Neden bu puan verildi? (Kısa 1 cümle)",
