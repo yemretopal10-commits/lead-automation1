@@ -23,8 +23,11 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
 
     console.log("🤖 Groq AI ile skorlama ve veri zenginleştirme yapılıyor...");
 
-    // Groq'un en temel, her hesapta ücretsiz ve açık olan varsayılan modeli
-    const activeModel = 'gemma2-9b-it';
+    // Aktif modeller listeleniyor ve çalışan bir model otomatik seçiliyor
+    const modelsList = await groq.models.list();
+    const usableModel = modelsList.data.find(m => m.id.includes('llama') || m.id.includes('mixtral'))?.id || modelsList.data[0].id;
+    
+    console.log(`📌 Seçilen Aktif Groq Modeli: ${usableModel}`);
 
     const completion = await groq.chat.completions.create({
       messages: [
@@ -46,12 +49,10 @@ SADECE geçerli bir JSON objesi döndür. Metin veya açıklama ekleme:
           content: sayfaMetni
         }
       ],
-      model: activeModel
+      model: usableModel
     });
 
     const rawContent = completion.choices[0].message.content;
-    
-    // JSON içeriğini metinden güvenli şekilde çıkarma
     const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.log("❌ AI geçerli bir JSON üretemedi.");
