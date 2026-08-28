@@ -42,7 +42,7 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
           content: sayfaMetni
         }
       ],
-      model: 'llama-3.3-70b-versatile'
+      model: 'llama-3.1-8b-instant'
     });
 
     const rawContent = completion.choices[0].message.content.trim();
