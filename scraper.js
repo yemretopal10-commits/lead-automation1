@@ -21,24 +21,16 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
     $('script, style, iframe, noscript').remove();
     const sayfaMetni = $('body').text().replace(/\s+/g, ' ').slice(0, 3000);
 
-    console.log("🤖 Groq AI ile skorlama ve veri zenginleştirme yapılıyor...");
+    console.log("🤖 Groq AI ile analiz yapılıyor...");
 
-    // Güvenlik (prompt-guard/whisper) modellerini hariç tutan doğru model seçimi
-    const modelsList = await groq.models.list();
-    const usableModel = modelsList.data.find(m => 
-      !m.id.includes('guard') && 
-      !m.id.includes('whisper') && 
-      (m.id.includes('llama') || m.id.includes('gpt-oss') || m.id.includes('qwen'))
-    )?.id || 'llama-3.3-70b-versatile';
-    
-    console.log(`📌 Seçilen Aktif Groq Modeli: ${usableModel}`);
+    // Model arama derdi yok, doğrudan kararlı üretim modeli
+    const activeModel = 'llama-3.3-70b-versatile';
 
     const completion = await groq.chat.completions.create({
       messages: [
         {
           role: 'system',
-          content: `Sen bir B2B Müşteri Analistisin. Verilen metni incele. 
-SADECE geçerli bir JSON objesi döndür. Metin veya açıklama ekleme:
+          content: `Sen bir B2B Müşteri Analistisin. Verilen metni incele ve SADECE saf bir JSON objesi döndür. Markdown blokları (\`\`\`) veya ekstra yazı asla ekleme:
 {
   "sirket_adi": "Şirket Adı",
   "email": "Gerçek e-posta veya null",
@@ -53,17 +45,22 @@ SADECE geçerli bir JSON objesi döndür. Metin veya açıklama ekleme:
           content: sayfaMetni
         }
       ],
-      model: usableModel
+      model: activeModel
     });
 
-    const rawContent = completion.choices[0].message.content;
-    const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.log("❌ AI geçerli bir JSON üretemedi.");
+    const rawContent = completion.choices[0].message.content.trim();
+    
+    // Temiz JSON bulma ve parse etme
+    const jsonStart = rawContent.indexOf('{');
+    const jsonEnd = rawContent.lastIndexOf('}');
+    
+    if (jsonStart === -1 || jsonEnd === -1) {
+      console.log("❌ AI geçerli bir JSON formatı döndürmedi.");
       return;
     }
 
-    const leadData = JSON.parse(jsonMatch[0]);
+    const cleanJsonString = rawContent.substring(jsonStart, jsonEnd + 1);
+    const leadData = JSON.parse(cleanJsonString);
 
     if (!leadData.email) {
       console.log("⚠️ E-posta adresi bulunamadı, veritabanına eklenmedi.");
