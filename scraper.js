@@ -4,8 +4,10 @@ const cheerio = require('cheerio');
 const { createClient } = require('@supabase/supabase-js');
 const Groq = require('groq-sdk');
 
+// Test etmek istediğin gerçek B2B web sitelerinin URL'lerini buraya ekle:
 const HEDEF_SITELER = [
-  'https://www.scrapethissite.com/pages/simple/'
+  'https://www.metrik.com.tr', // Örnek B2B site 1 (Kendi hedef listene göre güncelleyebilirsin)
+  // 'https://ornek-ajans.com/iletisim',
 ];
 
 async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq) {
@@ -29,15 +31,15 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq) {
       messages: [
         {
           role: 'system',
-          content: `Sen bir B2B Dijital Pazarlama Ajansı için müşteri analistisin. Verilen metni incele ve firmayı değerlendir.
-SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama yazma:
+          content: `Sen bir B2B Müşteri Analistisin. Verilen metni detaylıca incele.
+SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama ekleme:
 {
   "sirket_adi": "Şirket Adı veya null",
-  "email": "Metinde geçen ilk e-posta adresi veya null",
-  "sektor": "Sektör bilgisi",
-  "potansiyel_skoru": 1 ile 10 arasında bir tamsayı,
-  "skor_nedeni": "Neden bu puan verildi? (Kısa 1 cümle)",
-  "hedef_unvan": "Ulaşılacak ideal karar verici (Örn: CEO, Kurucu, Pazarlama Müdürü)"
+  "email": "Metindeki gerçek e-posta adresi (Örn: info@..., iletisim@...) veya null",
+  "sektor": "Şirketin ana sektörü",
+  "potansiyel_skoru": 1 ile 10 arasında bir puan (Ticari potansiyeli ve dijital olgunluğuna göre),
+  "skor_nedeni": "Bu puanın kısa gerekçesi (1 cümle)",
+  "hedef_unvan": "Ulaşılacak ideal karar verici (Örn: CEO, Pazarlama Direktörü, Kurucu)"
 }`
         },
         {
@@ -51,13 +53,13 @@ SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama yazma:
 
     const leadData = JSON.parse(completion.choices[0].message.content);
 
-    // E-posta yoksa bile Supabase tablosunu görebilmen için zorunlu kayıt ekledik
+    // E-posta yoksa veri kirliliğini önlemek için kaydı atla
     if (!leadData.email) {
-      console.log("⚠️ E-posta bulunamadı ama tabloyu test etmek için geçici mail atandı.");
-      leadData.email = `test-${Date.now()}@basarili.com`;
+      console.log("⚠️ E-posta adresi bulunamadı, veritabanına eklenmedi.");
+      return;
     }
 
-    console.log("🎯 AI Tarafından Zenginleştirilen Veri:", leadData);
+    console.log("🎯 AI Tarafından Analiz Edilen Nitelikli Veri:", leadData);
 
     const { error } = await supabase.from('leads').insert([
       {
@@ -78,11 +80,11 @@ SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama yazma:
         console.error("❌ Supabase Kayıt Hatası:", error.message);
       }
     } else {
-      console.log("🚀 Nitelikli veri Supabase veritabanına başarıyla eklendi!");
+      console.log("🚀 Gerçek nitelikli lead Supabase'e kaydedildi!");
     }
 
   } catch (err) {
-    console.error(`❌ ${targetUrl} işlenirken hata oluştu:`, err.message);
+    console.error(`❌ ${targetUrl} taranırken hata oluştu:`, err.message);
   }
 }
 
