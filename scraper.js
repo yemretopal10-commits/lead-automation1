@@ -23,8 +23,8 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
 
     console.log("🤖 Groq AI ile skorlama ve veri zenginleştirme yapılıyor...");
 
-    const modelsList = await groq.models.list();
-    const activeModel = modelsList.data[0]?.id || 'llama-3.1-70b-versatile';
+    // JSON modunu kesin olarak destekleyen kararlı model sabitlendi
+    const activeModel = 'llama3-8b-8192';
 
     const completion = await groq.chat.completions.create({
       messages: [
@@ -63,7 +63,6 @@ SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama ekleme:
     if (yuksekSkorluMu) {
       console.log("🔥 Yüksek potansiyelli lead tespit edildi! E-posta gönderiliyor...");
       
-      // Resend API Yanıtı Doğru Şekilde Yakalanıyor
       const { error: emailErr } = await resend.emails.send({
         from: 'Lead Otomasyon <onboarding@resend.dev>',
         to: leadData.email,
