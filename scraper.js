@@ -23,8 +23,9 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
 
     console.log("🤖 Groq AI ile skorlama ve veri zenginleştirme yapılıyor...");
 
-    // Kararlı ve standart model sabitlendi
-    const activeModel = 'llama-3.3-70b-versatile';
+    // Hesabının erişebildiği modeli otomatik seçer
+    const modelsList = await groq.models.list();
+    const activeModel = modelsList.data[0]?.id || 'llama-3.1-70b-versatile';
 
     const completion = await groq.chat.completions.create({
       messages: [
