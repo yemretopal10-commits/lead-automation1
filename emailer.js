@@ -2,13 +2,21 @@ require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const { Resend } = require('resend');
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 async function otomasyonuCalistir() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_KEY;
+  const resendApiKey = process.env.RESEND_API_KEY;
+
+  if (!supabaseUrl || !supabaseKey || !resendApiKey) {
+    console.error("❌ Çevre değişkenleri (ENV) eksik!");
+    return;
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const resend = new Resend(resendApiKey);
+
   console.log("📧 Gönderilecek mailler kontrol ediliyor...");
 
-  // Supabase'den durumu 'bekliyor' olan kayıtları çek
   const { data: leads, error } = await supabase
     .from('leads')
     .select('*')
@@ -20,7 +28,7 @@ async function otomasyonuCalistir() {
     return;
   }
 
-  if (leads.length === 0) {
+  if (!leads || leads.length === 0) {
     console.log("ℹ️ Gönderilecek yeni lead bulunamadı.");
     return;
   }
@@ -29,8 +37,8 @@ async function otomasyonuCalistir() {
     try {
       console.log(`✉️ Mail gönderiliyor: ${lead.sirket_adi} (${lead.email})`);
 
-      const response = await resend.emails.send({
-        from: 'onboarding@resend.dev', // Resend ücretsiz test adresi
+      const { data, error: sendError } = await resend.emails.send({
+        from: 'Lead Otomasyon <onboarding@resend.dev>',
         to: lead.email,
         subject: `${lead.sirket_adi} İçin İş Birliği Teklifi`,
         html: `
@@ -42,11 +50,10 @@ async function otomasyonuCalistir() {
         `
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (sendError) {
+        throw new Error(sendError.message);
       }
 
-      // Mail gittiyse veritabanında durumu güncelle
       await supabase
         .from('leads')
         .update({ durum: 'mail_atildi' })
@@ -54,8 +61,13 @@ async function otomasyonuCalistir() {
 
       console.log(`✅ Mail başarıyla gönderildi ve statü güncellendi: ${lead.email}`);
 
-    } catch (sendError) {
-      console.error(`❌ ${lead.email} adresine mail gönderilemedi:`, sendError.message);
+    } catch (err) {
+      console.error(`❌ ${lead.email} adresine mail gönderilemedi:`, err.message);
+
+      await supabase
+        .from('leads')
+        .update({ durum: 'mail_hatasi' })
+        .eq('id', lead.id);
     }
   }
 }

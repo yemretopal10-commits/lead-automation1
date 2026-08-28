@@ -21,10 +21,16 @@ jobs:
       - name: Bağımlılıkları Yükle
         run: npm ci
 
-      - name: Otomasyonu Çalıştır
+      - name: 1. Scraper Çalıştır (Lead Analiz)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: node scraper.js
+
+      - name: 2. Emailer Çalıştır (Outreach Gönderimi)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: node emailer.js

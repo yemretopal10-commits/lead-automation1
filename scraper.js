@@ -23,9 +23,13 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, geminiApiKey) {
     console.log("🤖 Google Gemini AI ile profesyonel B2B analizi yapılıyor...");
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    // Doğru model ismi ve garanti JSON çıktısı yapılandırması
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      generationConfig: { responseMimeType: "application/json" }
+    });
 
-    const promptText = `Sen profesyonel bir B2B Müşteri Analistisin. Verilen web sitesi metnini analiz et. SADECE saf bir JSON objesi döndür, markdown blokları veya ekstra metin ekleme:
+    const promptText = `Sen profesyonel bir B2B Müşteri Analistisin. Verilen web sitesi metnini analiz et. SADECE bu şemaya uygun bir JSON objesi üret:
 {
   "sirket_adi": "Şirket Adı",
   "email": "Sitede geçen gerçek e-posta veya null",
@@ -39,16 +43,7 @@ Metin: ${sayfaMetni}`;
 
     const result = await model.generateContent(promptText);
     const rawContent = result.response.text().trim();
-    
-    const jsonStart = rawContent.indexOf('{');
-    const jsonEnd = rawContent.lastIndexOf('}');
-    
-    if (jsonStart === -1 || jsonEnd === -1) {
-      console.log("❌ AI geçerli bir JSON formatı döndürmedi.");
-      return;
-    }
-
-    const leadData = JSON.parse(rawContent.substring(jsonStart, jsonEnd + 1));
+    const leadData = JSON.parse(rawContent);
 
     if (!leadData.email) {
       leadData.email = 'metrik@metrik.com.tr';
