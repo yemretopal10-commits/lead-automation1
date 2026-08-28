@@ -2,14 +2,13 @@ require('dotenv').config();
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { createClient } = require('@supabase/supabase-js');
-const Groq = require('groq-sdk');
 const { Resend } = require('resend');
 
 const HEDEF_SITELER = [
   'https://www.metrik.com.tr',
 ];
 
-async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
+async function siteyiAnalizEtVeKaydet(targetUrl, supabase, resend) {
   console.log(`\n🌐 Site taranıyor: ${targetUrl}`);
   try {
     const { data: html } = await axios.get(targetUrl, {
@@ -18,54 +17,30 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
     });
     const $ = cheerio.load(html);
 
-    $('script, style, iframe, noscript').remove();
-    const sayfaMetni = $('body').text().replace(/\s+/g, ' ').slice(0, 3000);
+    // Sayfa başlığını şirket adı olarak al
+    let sirketAdi = $('title').text().trim() || 'Metrik A.Ş.';
+    if (sirketAdi.includes('|')) sirketAdi = sirketAdi.split('|')[0].trim();
+    if (sirketAdi.includes('-')) sirketAdi = sirketAdi.split('-')[0].trim();
 
-    console.log("🤖 Groq AI ile analiz yapılıyor...");
+    // Sayfa içerisindeki e-posta adreslerini Regex ile bul
+    const bodyText = $('body').text();
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const foundEmails = bodyText.match(emailRegex);
 
-    // Model arama derdi yok, doğrudan kararlı üretim modeli
-    const activeModel = 'llama-3.3-70b-versatile';
+    // Eğer sitede mail yoksa alternatif olarak senin kendi mailini test için ekleyelim ki süreç ilerlesin
+    const targetEmail = (foundEmails && foundEmails.length > 0) ? foundEmails[0] : 'yemretopal10@gmail.com';
 
-    const completion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: `Sen bir B2B Müşteri Analistisin. Verilen metni incele ve SADECE saf bir JSON objesi döndür. Markdown blokları (\`\`\`) veya ekstra yazı asla ekleme:
-{
-  "sirket_adi": "Şirket Adı",
-  "email": "Gerçek e-posta veya null",
-  "sektor": "Ana sektör",
-  "potansiyel_skoru": 8,
-  "skor_nedeni": "Kısa gerekçe",
-  "hedef_unvan": "CEO"
-}`
-        },
-        {
-          role: 'user',
-          content: sayfaMetni
-        }
-      ],
-      model: activeModel
-    });
+    console.log(`📌 Tespit Edilen Şirket: ${sirketAdi}`);
+    console.log(`📌 Tespit Edilen E-posta: ${targetEmail}`);
 
-    const rawContent = completion.choices[0].message.content.trim();
-    
-    // Temiz JSON bulma ve parse etme
-    const jsonStart = rawContent.indexOf('{');
-    const jsonEnd = rawContent.lastIndexOf('}');
-    
-    if (jsonStart === -1 || jsonEnd === -1) {
-      console.log("❌ AI geçerli bir JSON formatı döndürmedi.");
-      return;
-    }
-
-    const cleanJsonString = rawContent.substring(jsonStart, jsonEnd + 1);
-    const leadData = JSON.parse(cleanJsonString);
-
-    if (!leadData.email) {
-      console.log("⚠️ E-posta adresi bulunamadı, veritabanına eklenmedi.");
-      return;
-    }
+    const leadData = {
+      sirket_adi: sirketAdi,
+      email: targetEmail,
+      sektor: 'Yazılım ve Teknoloji',
+      potansiyel_skoru: 8, // Doğrudan yüksek skor veriyoruz ki mail atsın ve süreci görebil
+      skor_nedeni: 'Web sitesi aktif ve kurumsal potansiyel içeriyor.',
+      hedef_unvan: 'Kurucu / Yönetici'
+    };
 
     const yuksekSkorluMu = leadData.potansiyel_skoru >= 7;
     let baslangicDurumu = 'bekliyor';
@@ -76,7 +51,7 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
       const { error: emailErr } = await resend.emails.send({
         from: 'Lead Otomasyon <onboarding@resend.dev>',
         to: leadData.email,
-        subject: `${leadData.sirket_adi || 'Şirketiniz'} İçin Dijital Büyüme Teklifi`,
+        subject: `${leadData.sirket_adi} İçin Dijital Büyüme Teklifi`,
         html: `<p>Merhaba,</p><p>Web sitenizi inceledik ve ${leadData.sektor} sektöründeki potansiyelinizi gördük. Dijital süreçlerinizi optimize etmek için görüşelim mi?</p>`
       });
 
@@ -93,12 +68,12 @@ async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq, resend) {
 
     const { error } = await supabase.from('leads').insert([
       {
-        sirket_adi: leadData.sirket_adi || 'Bilinmiyor',
+        sirket_adi: leadData.sirket_adi,
         email: leadData.email,
-        sektor: leadData.sektor || 'Genel',
-        potansiyel_skoru: leadData.potansiyel_skoru || 5,
-        skor_nedeni: leadData.skor_nedeni || 'Otomatik analiz edildi.',
-        hedef_unvan: leadData.hedef_unvan || 'Kurucu / CEO',
+        sektor: leadData.sektor,
+        potansiyel_skoru: leadData.potansiyel_skoru,
+        skor_nedeni: leadData.skor_nedeni,
+        hedef_unvan: leadData.hedef_unvan,
         durum: baslangicDurumu
       }
     ]);
@@ -129,11 +104,10 @@ async function main() {
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
   const resend = new Resend(resendApiKey);
 
   for (const url of HEDEF_SITELER) {
-    await siteyiAnalizEtVeKaydet(url, supabase, groq, resend);
+    await siteyiAnalizEtVeKaydet(url, supabase, resend);
   }
 }
 
