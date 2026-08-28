@@ -4,21 +4,15 @@ const cheerio = require('cheerio');
 const { createClient } = require('@supabase/supabase-js');
 const Groq = require('groq-sdk');
 
-async function leadToplaVeKaydet(targetUrl) {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_KEY;
+// Hedef Web Siteleri Listesi (Test için gerçek firmaların siteleri eklenebilir)
+const HEDEF_SITELER = [
+  'https://www.google.com', // Test için
+  // 'https://ornek-eticaret-sitesi.com',
+  // 'https://ornek-yazilim-sirketi.com'
+];
 
-  console.log("SUPABASE_URL Kontrolü:", supabaseUrl ? "BAŞARILI" : "EKSİK/BOŞ");
-
-  if (!supabaseUrl || !supabaseKey) {
-    console.error("❌ SUPABASE_URL veya SUPABASE_KEY tanımlı değil!");
-    return;
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
-  console.log(`🌐 Site taranıyor: ${targetUrl}`);
+async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq) {
+  console.log(`\n🌐 Site taranıyor: ${targetUrl}`);
   try {
     const { data: html } = await axios.get(targetUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
@@ -26,19 +20,28 @@ async function leadToplaVeKaydet(targetUrl) {
     });
     const $ = cheerio.load(html);
 
-    $('script, style, iframe').remove();
+    $('script, style, iframe, noscript').remove();
     const sayfaMetni = $('body').text().replace(/\s+/g, ' ').slice(0, 3000);
 
-    console.log("🤖 Yapay zeka verileri analiz ediyor...");
+    console.log("🤖 Groq AI ile skorlama ve veri zenginleştirme yapılıyor...");
 
     const modelsList = await groq.models.list();
-    const activeModel = modelsList.data[0]?.id;
+    const activeModel = modelsList.data[0]?.id || 'llama-3.3-70b-versatile';
 
     const completion = await groq.chat.completions.create({
       messages: [
         {
           role: 'system',
-          content: 'Sen bir B2B veri ayıklama uzmanısın. Verilen metinden şirket adını, e-posta adresini ve sektörünü ayıkla. Yanıtı SADECE geçerli bir JSON formatında ver: {"sirket_adi": "...", "email": "...", "sektor": "..."}. E-posta yoksa "email" değerini null yap.'
+          content: `Sen bir B2B Dijital Pazarlama Ajansı için müşteri analistisin. Verilen metni incele ve firmayı değerlendir.
+SADECE aşağıdaki JSON formatında yanıt ver, ekstra açıklama yazma:
+{
+  "sirket_adi": "Şirket Adı veya null",
+  "email": "E-posta veya null",
+  "sektor": "Sektör bilgisi",
+  "potansiyel_skoru": 1 ile 10 arasında bir tamsayı,
+  "skor_nedeni": "Neden bu puan verildi? (Kısa 1 cümle)",
+  "hedef_unvan": "Ulaşılacak ideal karar verici (Örn: CEO, Kurucu, Pazarlama Müdürü)"
+}`
         },
         {
           role: 'user',
@@ -56,13 +59,16 @@ async function leadToplaVeKaydet(targetUrl) {
       return;
     }
 
-    console.log("🎯 Bulunan Veri:", leadData);
+    console.log("🎯 AI Tarafından Zenginleştirilen Veri:", leadData);
 
     const { error } = await supabase.from('leads').insert([
       {
         sirket_adi: leadData.sirket_adi || 'Bilinmiyor',
         email: leadData.email,
         sektor: leadData.sektor || 'Genel',
+        potansiyel_skoru: leadData.potansiyel_skoru || 5,
+        skor_nedeni: leadData.skor_nedeni || 'Otomatik analiz edildi.',
+        hedef_unvan: leadData.hedef_unvan || 'Kurucu / CEO',
         durum: 'bekliyor'
       }
     ]);
@@ -74,12 +80,29 @@ async function leadToplaVeKaydet(targetUrl) {
         console.error("❌ Supabase Kayıt Hatası:", error.message);
       }
     } else {
-      console.log("🚀 Veri Supabase veritabanına başarıyla kaydedildi!");
+      console.log("🚀 Nitelikli veri Supabase veritabanına başarıyla eklendi!");
     }
 
   } catch (err) {
-    console.error("❌ İşlem Hatası:", err.message);
+    console.error(`❌ ${targetUrl} işlenirken hata oluştu:`, err.message);
   }
 }
 
-leadToplaVeKaydet('https://www.google.com');
+async function main() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("❌ SUPABASE_URL veya SUPABASE_KEY tanımlı değil!");
+    return;
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+  for (const url of HEDEF_SITELER) {
+    await siteyiAnalizEtVeKaydet(url, supabase, groq);
+  }
+}
+
+main();
