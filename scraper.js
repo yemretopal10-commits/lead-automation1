@@ -6,7 +6,7 @@ const Groq = require('groq-sdk');
 
 // Test etmek istediğin web sitelerini buraya ekleyebilirsin:
 const HEDEF_SITELER = [
-  'https://www.w3schools.com/about/about_contact.asp'
+  'https://www.scrapethissite.com/pages/simple/'
 ];
 
 async function siteyiAnalizEtVeKaydet(targetUrl, supabase, groq) {
