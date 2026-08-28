@@ -1,9 +1,8 @@
 require('dotenv').config();
+const axios = require('axios');
 const { createClient } = require('@supabase/supabase-js');
-const Groq = require('groq-sdk');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 async function baglantiTesti() {
   console.log("Sistemler test ediliyor...");
@@ -16,25 +15,24 @@ async function baglantiTesti() {
     console.log('✅ Supabase Bağlantısı Başarılı! Tablodaki Kayıt Sayısı:', data.length);
   }
 
-  // 2. Groq AI Testi (Hesaptaki aktif modeli otomatik yakalar)
+  // 2. Google Gemini AI Testi
   try {
-    const modelsList = await groq.models.list();
-    const activeModel = modelsList.data[0]?.id;
-
-    if (!activeModel) {
-      throw new Error("Hesabınızda aktif model bulunamadı.");
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) {
+      throw new Error("GEMINI_API_KEY tanımlı değil.");
     }
 
-    console.log(`🤖 Bulunan Aktif Model: ${activeModel}`);
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+      {
+        contents: [{ parts: [{ text: "Sadece 'Hazırım' de." }] }]
+      }
+    );
 
-    const completion = await groq.chat.completions.create({
-      messages: [{ role: 'user', content: "Sadece 'Hazırım' de." }],
-      model: activeModel,
-    });
-    
-    console.log('✅ Yapay Zeka (Groq) Bağlantısı Başarılı! Yanıt:', completion.choices[0].message.content.trim());
+    const aiYanit = response.data.candidates[0].content.parts[0].text.trim();
+    console.log('✅ Yapay Zeka (Gemini) Bağlantısı Başarılı! Yanıt:', aiYanit);
   } catch (err) {
-    console.error('❌ AI Hatası:', err.message);
+    console.error('❌ AI Hatası:', err.response?.data || err.message);
   }
 }
 

@@ -6,7 +6,7 @@ Tamamen ücretsiz ve bulut tabanlı araçlar kullanılarak geliştirilmiş, uçt
 
 * **Runtime:** Node.js
 * **Database:** Supabase (PostgreSQL)
-* **AI Engine:** Groq API (Llama 3 / Fast Inference)
+* **AI Engine:** Google Gemini API (Flash 1.5)
 * **Email Delivery:** Resend
 * **Automation / Cron:** GitHub Actions
 * **Scraper:** Axios & Cheerio
@@ -14,7 +14,7 @@ Tamamen ücretsiz ve bulut tabanlı araçlar kullanılarak geliştirilmiş, uçt
 ## ⚙️ Nasıl Çalışır?
 
 1. **Web Scraping:** Hedef firmanın web sitesindeki ham metin ve iletişim sayfaları taranır.
-2. **AI Analysis:** Groq API (Llama) aracılığıyla metinden şirket adı, sektör ve e-posta adresi JSON formatında süzülür.
+2. **AI Analysis:** Google Gemini API aracılığıyla metinden şirket adı, sektör ve e-posta adresi JSON formatında süzülür.
 3. **Database Storage:** Elde edilen veriler Supabase üzerindeki `leads` tablosuna kaydedilir (Çift kayıt engellenir).
 4. **Automated Outreach:** Resend altyapısı kullanılarak kişiselleştirilmiş B2B teklif e-postası otomatik iletilir ve veritabanı statüsü güncellenir.
 5. **24/7 Cloud Automation:** GitHub Actions (Cron Jobs) sayesinde sistem her gün belirlenen saatte bilgisayardan bağımsız otonom çalışır.
